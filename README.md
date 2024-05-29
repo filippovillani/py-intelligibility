@@ -15,10 +15,8 @@ d = pystgi(clean_speech, degraded_speech, sampling_frequency)
 * ```degraded_speech```: A numpy array containing a single-channel degraded/processed speech signal.
 * ```sampling_frequency```: The sampling frequency of the input signals in ```Hz```.
 
-Note that the clean and degraded speech signals must be time-aligned and of the same length. The algorithms only support 10 KHz sampling rate.
+Note that the clean and degraded speech signals must be time-aligned and of the same length.
 
-## Missing Features
-Voice activity detection is not implemented yet.
 
 ## References
 If you use pywstmi or pystgi, please cite the references [1] and [2], respectively:
