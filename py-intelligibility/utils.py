@@ -25,6 +25,7 @@ Society of America, 131(5), 4134-4151.
 """
 
 import numpy as np
+import scipy
 
 
 def hann_win(width):
@@ -43,7 +44,7 @@ def hann_win(width):
 
 
 def gfilter_gen(omega, nu, phi, size_max):
-    w = np.Inf;
+    w = np.Inf
     if omega > 0:
         w = 2*np.pi / abs(omega) * nu / 2
         
@@ -82,10 +83,10 @@ def gbfb1d(X, size_max, nu, phase, omega):
 
 
 def gbfb_axis(omega_max, size_max, nu, distance):
-    omega_min = (np.pi * nu) / size_max;
-    c = distance * 8 / nu;
-    space = (1 + c/2) / (1 - c/2);
-    omega = [];
+    omega_min = (np.pi * nu) / size_max
+    c = distance * 8 / nu
+    space = (1 + c/2) / (1 - c/2)
+    omega = []
     count = 0
     last_omega = omega_max
     
@@ -104,8 +105,8 @@ def sgbfb(log_mel_spec, stm_channels=np.ones((11, 5)), omega_s=None, omega_t=Non
     num_bands = log_mel_spec.shape[0]
     nu = [3.5, 3.5]
     size_max = [3*num_bands, 40]
-    phases = [0, 0];
-    distance = [0.2, 0.2];
+    phases = [0, 0]
+    distance = [0.2, 0.2]
     context = int(np.floor(size_max[1]/2))
     
     if omega_s is None and omega_t is None:
@@ -114,8 +115,8 @@ def sgbfb(log_mel_spec, stm_channels=np.ones((11, 5)), omega_s=None, omega_t=Non
         col = np.unique(col)
         omega_s = gbfb_axis(omega_max[0], size_max[0], nu[0], distance[0])
         omega_t = gbfb_axis(omega_max[1], size_max[1], nu[1], distance[1])
-        omega_s = omega_s[row];
-        omega_t = omega_t[col];
+        omega_s = omega_s[row]
+        omega_t = omega_t[col]
     
     
     left_context = np.repeat(np.expand_dims(log_mel_spec[:, 0], axis=1), repeats=context, axis=1)
@@ -185,9 +186,40 @@ def log_mel_spectrogram(signal, fs, win_shift=10, win_length=25, freq_range=None
 
 
 
+def removeSilentFrames(x, y, dyn_range, N, K):
+
+    frames = list(range(0, len(x)-N+1, K))
+    w = np.hanning(N)
+    msk = np.zeros_like(frames)
+
+    for j in range(len(frames)):
+        jj = range(frames[j], frames[j]+N)
+        msk[j] = 20 * np.log10(np.linalg.norm(x[jj]*w) / np.sqrt(N))
+
+    msk = (msk - max(msk) + dyn_range) > 0
+    count = 0
+
+    x_sil = np.zeros_like(x)
+    y_sil = np.zeros_like(x)
+
+    for j in range(len(frames)):
+        if msk[j]:
+            jj_i = range(frames[j], frames[j]+N)
+            jj_o = range(frames[count], frames[count]+N)
+            x_sil[jj_o] = x_sil[jj_o] + x[jj_i] * w
+            y_sil[jj_o] = y_sil[jj_o] + y[jj_i] * w
+            count += 1
+
+    x_sil = x_sil[:jj_o[-1]+1]
+    y_sil = y_sil[:jj_o[-1]+1]
+    return x_sil, y_sil
 
 
-
+def resample(x, fs_new, fs_old):
+    
+    num_samples = round(fs_new / fs_old * len(x))
+    x = scipy.signal.resample(x, num_samples)
+    return x
 
 
 def triafbmat(fs, num_coeff, freq_centers, width):

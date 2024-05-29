@@ -5,11 +5,11 @@ Created on Thu Sep  8 15:08:00 2022
 @author: Amin Edraki
 """
 
-from utils import log_mel_spectrogram, sgbfb
+from utils import log_mel_spectrogram, sgbfb, resample, removeSilentFrames
 import numpy as np
 
 
-def pystgi(clean_speech, degraded_speech, Fs):
+def pystgi(clean_speech, degraded_speech, fs):
     """
     Implementation of the Spectro-Temporal Glimpsing Index (STGI) 
     predictor, described in [1].
@@ -35,7 +35,12 @@ def pystgi(clean_speech, degraded_speech, Fs):
     Proc. Interspeech, 5 pages, Aug 2021.
     """
     assert clean_speech.size == degraded_speech.size
-    assert Fs == 10000
+    
+    Fs = 10000
+    if fs != Fs:
+        clean_speech = resample(clean_speech, Fs, fs)
+        degraded_speech = resample(degraded_speech, Fs, fs)
+
     STM_channels = np.ones((11, 4))
     thresholds   = [[0.252,0.347,0.275,0.189],
                     [0.502,0.495,0.404,0.279],
@@ -57,6 +62,11 @@ def pystgi(clean_speech, degraded_speech, Fs):
     N           = 40
     eps = 1e-15
     
+    dyn_range = 40
+    N_frame = 256
+    
+    clean_speech, degraded_speech = removeSilentFrames(clean_speech, degraded_speech, dyn_range, N_frame, N_frame//2)
+
     X, _    = log_mel_spectrogram(clean_speech, fs=Fs, win_shift=win_shift, win_length=win_length, freq_range=freq_range, num_bands=num_bands, band_factor=band_factor)
     Y, _    = log_mel_spectrogram(degraded_speech, fs=Fs, win_shift=win_shift, win_length=win_length, freq_range=freq_range, num_bands=num_bands, band_factor=band_factor)
 
@@ -83,8 +93,8 @@ def pystgi(clean_speech, degraded_speech, Fs):
         X_seg = X_seg / np.expand_dims(np.sqrt(np.sum(X_seg*X_seg, axis=2)), axis=2)
         Y_seg = Y_seg / np.expand_dims(np.sqrt(np.sum(Y_seg*Y_seg, axis=2)), axis=2)
         
-        d = np.squeeze(np.sum(X_seg * Y_seg, axis=2));
-        d = np.squeeze(np.mean(d, axis=2));
+        d = np.squeeze(np.sum(X_seg * Y_seg, axis=2))
+        d = np.squeeze(np.mean(d, axis=2))
         g = d > thresholds
         intell[n-N+1] = np.mean(g[:])
 
@@ -96,7 +106,7 @@ def pystgi(clean_speech, degraded_speech, Fs):
 
 
 
-def pywstmi(clean_speech, degraded_speech, Fs):
+def pywstmi(clean_speech, degraded_speech, fs):
     """
     Implementation of the weighted Spectro-Temporal Modulation Index (wSTMI) 
     predictor, described in [1].
@@ -122,7 +132,12 @@ def pywstmi(clean_speech, degraded_speech, Fs):
     Analysis. IEEE/ACM Transactions on Audio, Speech, and Language Processing, 29, 210-225.
     """
     assert clean_speech.size == degraded_speech.size
-    assert Fs == 10000
+    
+    Fs = 10000
+    if fs != Fs:
+        clean_speech = resample(clean_speech, Fs, fs)
+        degraded_speech = resample(degraded_speech, Fs, fs)
+
     
     win_length   = 25.6
     win_shift    = win_length/2
@@ -137,8 +152,12 @@ def pywstmi(clean_speech, degraded_speech, Fs):
            [0.013,0.041,0.055],
            [0.459,0.528,0.000],
            [0.151,0.000,0.000]]
-    b   = 0.16;
+    b   = 0.16
     
+    dyn_range = 40
+    N_frame   = 256
+    clean_speech, degraded_speech = removeSilentFrames(clean_speech, degraded_speech, dyn_range, N_frame, N_frame//2)
+
     X_spec, _    = log_mel_spectrogram(clean_speech, fs=Fs, win_shift=win_shift, win_length=win_length, freq_range=freq_range, num_bands=num_bands, band_factor=band_factor)
     Y_spec, _    = log_mel_spectrogram(degraded_speech, fs=Fs, win_shift=win_shift, win_length=win_length, freq_range=freq_range, num_bands=num_bands, band_factor=band_factor)
 
